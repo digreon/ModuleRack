@@ -78,3 +78,61 @@ jobs:
         run: |
           cmake --build build-ios --config Release -- -sdk iphoneos \
                 CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+
+      # Compiling is not the same as being loadable. A host only lists an AUv3 if
+      # the extension is embedded in the app and its Info.plist advertises an
+      # audio-unit component, and sound only survives backgrounding if the
+      # carrier app asks for the audio background mode. Check the built bundle
+      # rather than trusting the CMake keywords.
+      - name: Check the iPad bundle is packaged the way a host expects
+        run: |
+          set -euo pipefail
+          app=build-ios/ModuleRack_artefacts/Release/Standalone/ModuleRack.app
+          appex="$app/PlugIns/ModuleRack.appex"
+          plist=/usr/libexec/PlistBuddy
+
+          test -d "$app"   || { echo "no standalone app bundle"; exit 1; }
+          test -d "$appex" || { echo "AUv3 is not embedded in the app"; exit 1; }
+
+          echo "--- app Info.plist ---";  plutil -p "$app/Info.plist"
+          echo "--- AUv3 Info.plist ---"; plutil -p "$appex/Info.plist"
+
+          check() { # key file expected
+            actual=$($plist -c "Print $1" "$2")
+            [ "$actual" = "$3" ] || { echo "FAIL $1: got '$actual', expected '$3'"; exit 1; }
+            echo "ok  $1 = $actual"
+          }
+
+          # An AUv3 instrument: an AudioUnit-UI extension carrying an aumu
+          # (music device) component, matching the codes the plugin is built with.
+          check ":NSExtension:NSExtensionPointIdentifier" "$appex/Info.plist" "com.apple.AudioUnit-UI"
+          check ":NSExtension:NSExtensionAttributes:AudioComponents:0:type" "$appex/Info.plist" "aumu"
+          check ":NSExtension:NSExtensionAttributes:AudioComponents:0:subtype" "$appex/Info.plist" "Mrk1"
+          check ":NSExtension:NSExtensionAttributes:AudioComponents:0:manufacturer" "$appex/Info.plist" "Hrzn"
+
+          # Keeps playing when the host is backgrounded or the screen locks.
+          $plist -c "Print :UIBackgroundModes" "$app/Info.plist" | grep -q audio
+          echo "ok  UIBackgroundModes contains audio"
+
+          # A BLE MIDI controller is refused without this string.
+          $plist -c "Print :NSBluetoothAlwaysUsageDescription" "$app/Info.plist" > /dev/null
+          echo "ok  NSBluetoothAlwaysUsageDescription present"
+
+          # The device build has to be arm64, not a simulator slice.
+          lipo -info "$app/ModuleRack" | grep -q arm64
+          echo "ok  arm64 binary"
+
+          # The App Group is what lets a patch saved in the app show up in the
+          # AUv3, which are otherwise separate sandboxes. JUCE writes the
+          # entitlements at configure time, so they can be checked here even
+          # though this runner cannot sign -- and signing is the only thing that
+          # makes them take effect, so this is a check of the configuration, not
+          # proof the sharing works. That still needs a signed build on a device.
+          found=0
+          for f in $(find build-ios -name '*.entitlements'); do
+            echo "--- $f ---"; cat "$f"
+            grep -q "group.com.horizon.modulerack" "$f" || { echo "FAIL: no app group in $f"; exit 1; }
+            found=$((found + 1))
+          done
+          [ "$found" -ge 2 ] || { echo "FAIL: expected entitlements for both app and extension, found $found"; exit 1; }
+          echo "ok  app group in $found entitlements files"

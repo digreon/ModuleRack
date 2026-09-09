@@ -5,10 +5,10 @@ namespace modulerack
 
 ModuleRackEditor::ModuleRackEditor(ModuleRackProcessor& processorToUse)
     : AudioProcessorEditor(&processorToUse),
-      processor(processorToUse),
-      padRow(processor.getSignalGraph(), processor.getMidiMapper()),
-      modulePanel(processor.getSignalGraph(), processor.getMidiMapper()),
-      presetBrowser(processor)
+      rackProcessor(processorToUse),
+      padRow(rackProcessor.getSignalGraph(), rackProcessor.getMidiMapper()),
+      modulePanel(rackProcessor.getSignalGraph(), rackProcessor.getMidiMapper()),
+      presetBrowser(rackProcessor)
 {
     titleLabel.setText("ModuleRack", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(22.0f).withStyle("Bold")));
@@ -20,8 +20,8 @@ ModuleRackEditor::ModuleRackEditor(ModuleRackProcessor& processorToUse)
     bpmSlider.setSliderStyle(juce::Slider::LinearHorizontal);
     bpmSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 60, 20);
     bpmSlider.setRange(60.0, 200.0, 1.0);
-    bpmSlider.setValue(processor.getSignalGraph().getClock().getBpm(), juce::dontSendNotification);
-    bpmSlider.onValueChange = [this] { processor.getSignalGraph().getClock().setBpm((float) bpmSlider.getValue()); };
+    bpmSlider.setValue(rackProcessor.getSignalGraph().getClock().getBpm(), juce::dontSendNotification);
+    bpmSlider.onValueChange = [this] { rackProcessor.getSignalGraph().getClock().setBpm((float) bpmSlider.getValue()); };
     addAndMakeVisible(bpmSlider);
 
     controllerLabel.setText("Controller", juce::dontSendNotification);
@@ -41,7 +41,7 @@ ModuleRackEditor::ModuleRackEditor(ModuleRackProcessor& processorToUse)
 
     presetBrowser.onPresetLoaded = [this]
     {
-        bpmSlider.setValue(processor.getSignalGraph().getClock().getBpm(), juce::dontSendNotification);
+        bpmSlider.setValue(rackProcessor.getSignalGraph().getClock().getBpm(), juce::dontSendNotification);
     };
     addChildComponent(presetBrowser);
 
@@ -72,8 +72,8 @@ void ModuleRackEditor::showPresetBrowser(bool shouldBeVisible)
 
 void ModuleRackEditor::applySelectedControllerProfile()
 {
-    processor.getMidiMapper().setProfile(controllerBox.getSelectedId() == 2 ? MidiMapper::genericProfile()
-                                                                            : MidiMapper::mpkMiniProfile());
+    rackProcessor.getMidiMapper().setProfile(controllerBox.getSelectedId() == 2 ? MidiMapper::genericProfile()
+                                                                                : MidiMapper::mpkMiniProfile());
 }
 
 void ModuleRackEditor::paint(juce::Graphics& g)

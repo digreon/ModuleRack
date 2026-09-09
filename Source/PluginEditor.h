@@ -22,7 +22,7 @@ private:
     void applySelectedControllerProfile();
     void showPresetBrowser(bool shouldBeVisible);
 
-    ModuleRackProcessor& processor;
+    ModuleRackProcessor& rackProcessor;
 
     juce::Label titleLabel;
     juce::Label bpmLabel;
