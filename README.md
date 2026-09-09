@@ -209,16 +209,41 @@ the normalised 0..1 readouts were caught.
 ## Status
 
 The DSP core, the mapping and preset round-tripping are covered by the headless
-tests, which build and pass on Linux and macOS in CI. The plugin, standalone app
-and VST3 build clean on Linux.
+tests (992 checks), which build and pass on Linux and macOS in CI. The plugin,
+standalone app and VST3 build clean on Linux.
 
-Nothing here has touched an Apple toolchain, so on the iPad side treat all of
-this as written-but-unrun: the iOS CMake configuration has been checked keyword
-by keyword against JUCE's own argument lists, not executed; the AUv3 bundle has
-never been built; the plugin has never been loaded in a host; and no one has
-played it from an actual MPK Mini. First things to check on the Mac, in order:
-the AUv3 builds and installs, a host lists and loads it, the pads and knobs land
-on the right modules, and the sound survives backgrounding.
+The iPad targets are built in CI as well, on macOS runners. The `ios` job
+configures with the Xcode generator for `CMAKE_SYSTEM_NAME=iOS` and builds both
+the standalone app and the AUv3 for arm64 against the iPhoneOS SDK, and
+`macos-auv3` builds the AUv3 for the desktop. Compiling is not the same as being
+loadable, so the iOS job also inspects the bundle it produced: the `.appex` is
+embedded in `ModuleRack.app/PlugIns`, its `Info.plist` advertises an
+`AudioUnit-UI` extension with an `aumu` component matching the plugin's codes,
+the app asks for the audio background mode, the BLE usage string is there, the
+binary is arm64 rather than a simulator slice, and both entitlements files carry
+the App Group id.
+
+What that does **not** cover, and what still has to be done on a device:
+
+- **Signing.** A hosted runner has no development team, so the iOS job builds
+  with signing off. Entitlements only take effect when the bundle is signed, so
+  the App Group is verified as configuration, not as working preset sharing.
+- **Running.** Nothing here has been launched, loaded into a host, or played.
+
+So, in order, on a Mac with your team and App Group set up:
+
+1. Build and install with the command above, with your `<TEAM_ID>`.
+2. The app launches from the home screen and makes sound on its own.
+3. A host (AUM, Loopy Pro) lists ModuleRack and loads it.
+4. The MPK Mini's pads switch modules and its knobs move the selected module's
+   parameters. If they land on the wrong thing, it is the mapping and not the
+   audio: switch the profile in the editor's dropdown, or compare the note and
+   CC numbers against MPK Mini Editor (the defaults assumed here are in
+   *Controller mapping* above).
+5. Save a patch in the app and confirm it appears in the AUv3's preset list.
+   This is the App Group check — if the two see different lists, the group id is
+   missing from the provisioning profile rather than wrong in the code.
+6. Sound continues when the host goes to the background or the screen locks.
 
 ### Known gaps
 

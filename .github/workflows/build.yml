@@ -32,10 +32,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # AUv3 is skipped here: it builds an app-extension bundle that hasn't been
-      # validated on a bare CI runner. Build it on a Mac with the default options.
+      # Builds with the default options, which includes the AUv3 app-extension
+      # bundle -- what a developer gets on a Mac, rather than a reduced CI-only
+      # configuration.
       - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DMODULERACK_BUILD_AUV3=OFF
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
         run: cmake --build build
@@ -43,20 +44,8 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
-  # The iPad is the deployment target, but nothing here had ever been through an
-  # iOS toolchain: the macos job above builds AU + Standalone for the desktop and
-  # skips AUv3. These two jobs compile what actually ships on the device.
-  macos-auv3:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure
-        run: cmake -B build-auv3 -DCMAKE_BUILD_TYPE=Release -DMODULERACK_BUILD_AUV3=ON
-
-      - name: Build
-        run: cmake --build build-auv3
-
+  # The iPad is the deployment target, and nothing here had ever been through an
+  # iOS toolchain. This builds what actually ships on the device.
   ios:
     runs-on: macos-latest
     steps:
