@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(MODULERACK_BUILD_TESTS "Build the headless DSP test runner" ON)
+option(MODULERACK_BUILD_AUV3 "Build the AUv3 target on Apple platforms (needs a Mac + Xcode toolchain)" ON)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -79,7 +80,14 @@ target_link_libraries(ModuleRackCore
 # UI can be compiled and run on any dev machine.
 # ---------------------------------------------------------------------------
 if (APPLE)
-    set(MODULERACK_FORMATS AU AUv3 Standalone)
+    set(MODULERACK_FORMATS AU Standalone)
+
+    # AUv3 is the target that matters for the iPad, but it builds an app-extension
+    # bundle, which is the fussiest thing here to produce on a machine that isn't a
+    # configured Mac dev box. Off in CI, on by default everywhere else.
+    if (MODULERACK_BUILD_AUV3)
+        list(APPEND MODULERACK_FORMATS AUv3)
+    endif()
 else()
     set(MODULERACK_FORMATS VST3 Standalone)
 endif()

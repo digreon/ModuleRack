@@ -32,8 +32,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # AUv3 is skipped here: it builds an app-extension bundle that hasn't been
+      # validated on a bare CI runner. Build it on a Mac with the default options.
       - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DMODULERACK_BUILD_AUV3=OFF
 
       - name: Build
         run: cmake --build build

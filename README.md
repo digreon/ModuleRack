@@ -118,7 +118,9 @@ ctest --test-dir build --output-on-failure
 
 On macOS this builds AU, AUv3 and Standalone; elsewhere VST3 and Standalone,
 so the DSP and UI can be compiled and run on any dev machine. Add `-G Xcode`
-on macOS if you want the Xcode project.
+on macOS if you want the Xcode project. The macOS CI job passes
+`-DMODULERACK_BUILD_AUV3=OFF`, since the app-extension bundle hasn't been
+validated on a bare runner — build AUv3 locally with the defaults.
 
 For an iPad AUv3 host (e.g. Loopy Pro), build/archive the AUv3 target from the
 generated Xcode project and install it onto the device with Xcode, the same as
@@ -136,9 +138,12 @@ change by ear from a machine that can't run the plugin.
 ## Status
 
 The DSP core, the mapping and preset round-tripping are covered by the headless
-tests, which build and pass on Linux and macOS in CI. The AU/AUv3 targets
-themselves still have to be built on a Mac and tried in a host — CI compiles
-them, but nothing here validates them inside Logic, AUM or Loopy Pro.
+tests, which build and pass on Linux and macOS in CI. The plugin, standalone
+app and VST3 build clean on Linux. What is still unproven: the AU target is
+compiled by CI but never loaded in a host, AUv3 has not been built at all here,
+and no one has yet played the thing from an actual MPK Mini — so treat the pad
+notes, the knob CCs and the AUv3 packaging as the first things to check on a
+Mac.
 
 ### Known gaps
 
