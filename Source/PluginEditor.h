@@ -4,6 +4,7 @@
 #include "PluginProcessor.h"
 #include "UI/MixOverviewComponent.h"
 #include "UI/ModulePanel.h"
+#include "UI/PresetBrowser.h"
 
 namespace modulerack
 {
@@ -19,6 +20,7 @@ public:
 
 private:
     void applySelectedControllerProfile();
+    void showPresetBrowser(bool shouldBeVisible);
 
     ModuleRackProcessor& processor;
 
@@ -27,13 +29,11 @@ private:
     juce::Slider bpmSlider;
     juce::Label controllerLabel;
     juce::ComboBox controllerBox;
-    juce::TextButton savePresetButton { "Save Preset" };
-    juce::TextButton loadPresetButton { "Load Preset" };
+    juce::TextButton presetsButton { "Presets" };
 
     MixOverviewComponent padRow;
     ModulePanel modulePanel;
-
-    std::unique_ptr<juce::FileChooser> fileChooser;
+    PresetBrowser presetBrowser;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModuleRackEditor)
 };

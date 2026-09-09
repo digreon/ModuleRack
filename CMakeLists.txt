@@ -181,6 +181,8 @@ target_sources(ModuleRack PRIVATE
     Source/UI/ModulePanel.h
     Source/UI/MixOverviewComponent.cpp
     Source/UI/MixOverviewComponent.h
+    Source/UI/PresetBrowser.cpp
+    Source/UI/PresetBrowser.h
 )
 
 target_compile_definitions(ModuleRack PUBLIC

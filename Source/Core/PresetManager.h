@@ -23,6 +23,14 @@ public:
 
     static juce::File getPresetsDirectory();
 
+    /** The file a patch of this name is stored in, with illegal characters stripped.
+        Takes the directory explicitly so it can be tested without writing into the
+        real preset folder. */
+    static juce::File fileForPresetName(const juce::File& directory, const juce::String& name);
+
+    /** Every patch in `directory`, ordered by name the way a person reads a list. */
+    static juce::Array<juce::File> getPresetFiles(const juce::File& directory);
+
     static std::unique_ptr<juce::XmlElement> toXml(const Modules& modules, const Clock& clock, const MidiMapper& mapper);
     static void fromXml(const juce::XmlElement& xml, Modules& modules, Clock& clock, MidiMapper& mapper);
 

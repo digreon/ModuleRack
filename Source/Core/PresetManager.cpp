@@ -34,6 +34,33 @@ juce::File PresetManager::getPresetsDirectory()
     return directory;
 }
 
+juce::File PresetManager::fileForPresetName(const juce::File& directory, const juce::String& name)
+{
+    auto legalName = juce::File::createLegalFileName(name.trim());
+
+    if (legalName.isEmpty())
+        legalName = "Untitled";
+
+    return directory.getChildFile(legalName).withFileExtension(".xml");
+}
+
+juce::Array<juce::File> PresetManager::getPresetFiles(const juce::File& directory)
+{
+    auto files = directory.findChildFiles(juce::File::findFiles, false, "*.xml");
+
+    struct ByName
+    {
+        static int compareElements(const juce::File& a, const juce::File& b)
+        {
+            return a.getFileNameWithoutExtension().compareNatural(b.getFileNameWithoutExtension());
+        }
+    };
+
+    ByName comparator;
+    files.sort(comparator);
+    return files;
+}
+
 std::unique_ptr<juce::XmlElement> PresetManager::toXml(const Modules& modules, const Clock& clock, const MidiMapper& mapper)
 {
     auto xml = std::make_unique<juce::XmlElement>("ModuleRackPreset");

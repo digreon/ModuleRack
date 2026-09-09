@@ -361,6 +361,53 @@ void testPresetRoundTrip()
     file.deleteFile();
 }
 
+void testPresetNamingAndListing()
+{
+    startTest("Patches are named, listed in order and overwritten by name");
+
+    auto directory = juce::File::createTempFile("");
+    directory.deleteFile();
+    directory.createDirectory();
+
+    modulerack::SignalGraph graph;
+    modulerack::MidiMapper mapper;
+
+    // A name with characters a filesystem won't take still lands somewhere sane.
+    const auto messy = modulerack::PresetManager::fileForPresetName(directory, "Deep / Techno: 01");
+    CHECK(messy.getFileExtension() == ".xml");
+    CHECK(! messy.getFileNameWithoutExtension().containsAnyOf("/:"));
+
+    // An empty name is not allowed to produce a dotfile or an empty filename.
+    const auto blank = modulerack::PresetManager::fileForPresetName(directory, "   ");
+    CHECK(blank.getFileNameWithoutExtension().isNotEmpty());
+
+    CHECK(modulerack::PresetManager::getPresetFiles(directory).isEmpty());
+
+    for (const auto* name : { "Zulu", "alpha", "Mike" })
+        CHECK(modulerack::PresetManager::saveToFile(modulerack::PresetManager::fileForPresetName(directory, name),
+                                                    graph.getModules(), graph.getClock(), mapper));
+
+    const auto listed = modulerack::PresetManager::getPresetFiles(directory);
+    CHECK(listed.size() == 3);
+    CHECK(listed[0].getFileNameWithoutExtension() == "alpha");   // ordered the way a person reads
+    CHECK(listed[1].getFileNameWithoutExtension() == "Mike");
+    CHECK(listed[2].getFileNameWithoutExtension() == "Zulu");
+
+    // Saving the same name again replaces that patch rather than adding another.
+    graph.getClock().setBpm(150.0f);
+    CHECK(modulerack::PresetManager::saveToFile(modulerack::PresetManager::fileForPresetName(directory, "alpha"),
+                                                graph.getModules(), graph.getClock(), mapper));
+    CHECK(modulerack::PresetManager::getPresetFiles(directory).size() == 3);
+
+    modulerack::SignalGraph reloaded;
+    modulerack::MidiMapper reloadedMapper;
+    CHECK(modulerack::PresetManager::loadFromFile(modulerack::PresetManager::fileForPresetName(directory, "alpha"),
+                                                  reloaded.getModules(), reloaded.getClock(), reloadedMapper));
+    CHECK(juce::approximatelyEqual(reloaded.getClock().getBpm(), 150.0f));
+
+    directory.deleteRecursively();
+}
+
 void testTempoChangesAreHonoured()
 {
     startTest("Changing tempo changes how often modules fire");
@@ -404,6 +451,7 @@ int main()
     testKickDrivesTheSidechain();
     testMidiMapping();
     testPresetRoundTrip();
+    testPresetNamingAndListing();
     testTempoChangesAreHonoured();
 
     std::cout << std::endl

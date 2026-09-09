@@ -7,7 +7,8 @@ ModuleRackEditor::ModuleRackEditor(ModuleRackProcessor& processorToUse)
     : AudioProcessorEditor(&processorToUse),
       processor(processorToUse),
       padRow(processor.getSignalGraph(), processor.getMidiMapper()),
-      modulePanel(processor.getSignalGraph(), processor.getMidiMapper())
+      modulePanel(processor.getSignalGraph(), processor.getMidiMapper()),
+      presetBrowser(processor)
 {
     titleLabel.setText("ModuleRack", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(22.0f).withStyle("Bold")));
@@ -32,35 +33,15 @@ ModuleRackEditor::ModuleRackEditor(ModuleRackProcessor& processorToUse)
     controllerBox.onChange = [this] { applySelectedControllerProfile(); };
     addAndMakeVisible(controllerBox);
 
-    savePresetButton.onClick = [this]
-    {
-        fileChooser = std::make_unique<juce::FileChooser>("Save ModuleRack preset", PresetManager::getPresetsDirectory(), "*.xml");
-        fileChooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::warnAboutOverwriting,
-                                  [this](const juce::FileChooser& fc)
-                                  {
-                                      auto file = fc.getResult();
-                                      if (file != juce::File())
-                                          processor.savePreset(file.withFileExtension(".xml"));
-                                  });
-    };
-    addAndMakeVisible(savePresetButton);
+    presetsButton.setClickingTogglesState(true);
+    presetsButton.onClick = [this] { showPresetBrowser(presetsButton.getToggleState()); };
+    addAndMakeVisible(presetsButton);
 
-    loadPresetButton.onClick = [this]
+    presetBrowser.onPresetLoaded = [this]
     {
-        fileChooser = std::make_unique<juce::FileChooser>("Load ModuleRack preset", PresetManager::getPresetsDirectory(), "*.xml");
-        fileChooser->launchAsync(juce::FileBrowserComponent::openMode,
-                                  [this](const juce::FileChooser& fc)
-                                  {
-                                      auto file = fc.getResult();
-                                      if (file != juce::File())
-                                      {
-                                          processor.loadPreset(file);
-                                          bpmSlider.setValue(processor.getSignalGraph().getClock().getBpm(),
-                                                             juce::dontSendNotification);
-                                      }
-                                  });
+        bpmSlider.setValue(processor.getSignalGraph().getClock().getBpm(), juce::dontSendNotification);
     };
-    addAndMakeVisible(loadPresetButton);
+    addChildComponent(presetBrowser);
 
     addAndMakeVisible(padRow);
     addAndMakeVisible(modulePanel);
@@ -74,6 +55,18 @@ ModuleRackEditor::ModuleRackEditor(ModuleRackProcessor& processorToUse)
 }
 
 ModuleRackEditor::~ModuleRackEditor() = default;
+
+void ModuleRackEditor::showPresetBrowser(bool shouldBeVisible)
+{
+    // The browser takes over the panel area rather than opening a window: an AUv3
+    // view on an iPad has no room for a second window, and modal system UI inside
+    // an extension is unreliable.
+    if (shouldBeVisible)
+        presetBrowser.refresh();
+
+    presetBrowser.setVisible(shouldBeVisible);
+    modulePanel.setVisible(! shouldBeVisible);
+}
 
 void ModuleRackEditor::applySelectedControllerProfile()
 {
@@ -92,9 +85,7 @@ void ModuleRackEditor::resized()
 
     auto header = area.removeFromTop(40);
     titleLabel.setBounds(header.removeFromLeft(300));
-    loadPresetButton.setBounds(header.removeFromRight(110));
-    header.removeFromRight(8);
-    savePresetButton.setBounds(header.removeFromRight(110));
+    presetsButton.setBounds(header.removeFromRight(120));
 
     area.removeFromTop(8);
     auto transport = area.removeFromTop(36);
@@ -112,6 +103,7 @@ void ModuleRackEditor::resized()
 
     area.removeFromTop(10);
     modulePanel.setBounds(area);
+    presetBrowser.setBounds(area);
 }
 
 } // namespace modulerack

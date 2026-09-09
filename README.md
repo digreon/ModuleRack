@@ -79,6 +79,8 @@ Phase 1 so the audio graph shape never has to change at runtime for the MVP.
   and `ModulePanel` (8 rotary sliders bound to the selected module, also
   mouse-editable — the plugin doesn't require the MPK Mini to be usable for
   testing/sound design).
+- `Source/UI/PresetBrowser.h/.cpp` — the in-plugin patch list, deliberately free
+  of system file dialogs so it behaves the same in an AUv3 extension.
 - `Tests/ModuleRackTests.cpp` — headless checks over the real signal graph.
 - `Tools/RenderPreview.cpp` — renders a patch to a WAV with no host involved.
 
@@ -108,9 +110,21 @@ that's the mapping, not the plugin.
 
 ## The iPad build
 
-The iPad is the deployment target: ModuleRack runs there as an **AUv3** inside a
-host (AUM, Loopy Pro, Cubasis, GarageBand), with the MPK Mini attached over USB
-via a camera adapter, or over BLE MIDI.
+The iPad is the deployment target, and one build produces **both** ways of
+running it:
+
+- **A standalone app** you launch from the home screen — full-screen, plays on
+  its own, needs no host. JUCE opens every MIDI input automatically on iOS, so
+  an attached MPK Mini is picked up with no settings screen to visit.
+- **An AUv3 plugin** for use inside a host (AUM, Loopy Pro, Cubasis,
+  GarageBand), where it can be recorded, sequenced and mixed with other apps.
+
+These are not an either/or, and the standalone app is not a development
+leftover: on iOS an AUv3 can only be installed by installing an app that
+contains it. Building the standalone app *is* how the plugin reaches the
+device, and the same app is a usable instrument on its own.
+
+The MPK Mini attaches over USB (camera adapter) or BLE MIDI in both cases.
 
 ```sh
 cmake -B build-ios -G Xcode \
@@ -121,10 +135,9 @@ cmake -B build-ios -G Xcode \
 cmake --build build-ios --config Release -- -sdk iphoneos
 ```
 
-On iOS an AUv3 is delivered by the app that contains it, so the build produces
-a standalone app with the extension inside; install that app on the iPad with
-Xcode and the AUv3 appears in every host's plugin list. The headless test target
-is skipped automatically on iOS.
+Install the resulting app on the iPad with Xcode. It runs standalone from the
+home screen, and the AUv3 inside it appears in every host's plugin list. The
+headless test target is skipped automatically on iOS.
 
 What the iOS configuration sets up, and why each one matters here:
 
@@ -142,6 +155,13 @@ Touch is the primary input on the panel: the pad row is 56pt tall (past Apple's
 keyboard the extension can't host, and the refresh timer leaves alone any knob a
 finger is currently on. The editor is sized for landscape but shrinks to 480x340
 for a narrow host pane.
+
+Patches are saved and loaded through a list built into the plugin window (the
+**Presets** button), not through a system file dialog. On iOS a file dialog is a
+document picker, and modal system UI inside an AUv3 extension is unreliable —
+so nothing here leaves the plugin's own window. Save needs no typing (a free
+"Patch N" name is offered), and Delete asks for a second tap instead of opening
+an alert.
 
 **CPU:** all 8 modules render 82x faster than real time on one 2.8 GHz Xeon core
 (~1.2% of a core), so an iPad has ample headroom. That figure is offline at a
@@ -189,10 +209,6 @@ on the right modules, and the sound survives backgrounding.
 
 ### Known gaps
 
-- Preset Save/Load uses `juce::FileChooser`, which is a document picker on iOS.
-  That is the least certain part of the UI inside an AUv3 extension — an
-  in-plugin preset list reading the App Group folder would be more dependable.
-  The host's own state save/restore does not go through it and should be fine.
 - Module parameters are not exposed as host-automatable
   `AudioProcessorValueTreeState` parameters; the MPK Mini (or the mouse) is the
   only way to change them. Worth revisiting for AUv3 hosts.
