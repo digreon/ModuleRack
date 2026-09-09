@@ -5,8 +5,32 @@ project(ModuleRack VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(MODULERACK_BUILD_TESTS "Build the headless DSP test runner" ON)
+if (IOS)
+    set(MODULERACK_TESTS_DEFAULT OFF) # a console-app target makes no sense on a device
+else()
+    set(MODULERACK_TESTS_DEFAULT ON)
+endif()
+
+option(MODULERACK_BUILD_TESTS "Build the headless DSP test runner" ${MODULERACK_TESTS_DEFAULT})
 option(MODULERACK_BUILD_AUV3 "Build the AUv3 target on Apple platforms (needs a Mac + Xcode toolchain)" ON)
+
+# An AUv3 extension runs in its own sandbox container, separate from the standalone
+# app that carries it, so the two cannot see each other's preset files. Putting both
+# in one App Group fixes that -- but the group has to exist in your Apple developer
+# account and in the provisioning profile, so it is opt-in:
+#
+#   cmake -B build -DMODULERACK_APP_GROUP_ID=group.com.yourteam.modulerack ...
+#
+# Left empty, each side keeps its own presets (the host still saves and restores
+# plugin state either way).
+set(MODULERACK_APP_GROUP_ID "" CACHE STRING "App Group id shared by the standalone app and the AUv3 extension")
+
+if (IOS)
+    # AUv3 needs iOS 9; 14.0 is a sane floor for an iPad instrument in 2026.
+    if (NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "14.0" CACHE STRING "" FORCE)
+    endif()
+endif()
 
 include(FetchContent)
 FetchContent_Declare(
@@ -65,6 +89,13 @@ target_compile_definitions(ModuleRackCore PUBLIC
     JUCE_DISPLAY_SPLASH_SCREEN=0
 )
 
+if (MODULERACK_APP_GROUP_ID)
+    # PresetManager reads this to find the container both the app and the AUv3
+    # extension can write to.
+    target_compile_definitions(ModuleRackCore PUBLIC
+        MODULERACK_APP_GROUP_ID="${MODULERACK_APP_GROUP_ID}")
+endif()
+
 target_link_libraries(ModuleRackCore
     PUBLIC
         juce::juce_audio_basics
@@ -75,11 +106,43 @@ target_link_libraries(ModuleRackCore
 )
 
 # ---------------------------------------------------------------------------
-# The plugin itself. AU/AUv3 are the targets that matter (macOS + iPad AUv3
-# hosts such as Loopy Pro); elsewhere VST3 + Standalone are built so the DSP and
+# The plugin itself. The iPad is the deployment target: there it builds an AUv3
+# extension plus the standalone app that carries it onto the device. On macOS it
+# builds AU/AUv3 for development, and elsewhere VST3 + Standalone so the DSP and
 # UI can be compiled and run on any dev machine.
 # ---------------------------------------------------------------------------
-if (APPLE)
+if (IOS)
+    # On iOS an AUv3 is installed by installing the app that contains it, so the
+    # standalone target is not optional -- it is the delivery vehicle.
+    set(MODULERACK_FORMATS Standalone AUv3)
+
+    set(MODULERACK_IOS_OPTIONS
+        # An AUv3 host (AUM, Loopy Pro, Cubasis) keeps making sound while it is in
+        # the background or the screen is locked, and so must the app carrying it.
+        BACKGROUND_AUDIO_ENABLED TRUE
+
+        # The MPK Mini connects over USB (camera adapter) and needs no permission,
+        # but a Bluetooth controller does, and BLE MIDI has to survive backgrounding.
+        BACKGROUND_BLE_ENABLED TRUE
+        BLUETOOTH_PERMISSION_ENABLED TRUE
+        BLUETOOTH_PERMISSION_TEXT "ModuleRack uses Bluetooth to connect to wireless MIDI controllers."
+
+        # Split View / Slide Over: an instrument gets used next to its host.
+        REQUIRES_FULL_SCREEN FALSE
+        IPAD_SCREEN_ORIENTATIONS UIInterfaceOrientationLandscapeLeft
+                                 UIInterfaceOrientationLandscapeRight
+                                 UIInterfaceOrientationPortrait
+                                 UIInterfaceOrientationPortraitUpsideDown
+
+        # Patches show up in the Files app under On My iPad > ModuleRack.
+        FILE_SHARING_ENABLED TRUE)
+
+    if (MODULERACK_APP_GROUP_ID)
+        list(APPEND MODULERACK_IOS_OPTIONS
+             APP_GROUPS_ENABLED TRUE
+             APP_GROUP_IDS ${MODULERACK_APP_GROUP_ID})
+    endif()
+elseif (APPLE)
     set(MODULERACK_FORMATS AU Standalone)
 
     # AUv3 is the target that matters for the iPad, but it builds an app-extension
@@ -106,6 +169,7 @@ juce_add_plugin(ModuleRack
     PLUGIN_CODE Mrk1
     FORMATS ${MODULERACK_FORMATS}
     AU_MAIN_TYPE kAudioUnitType_MusicDevice
+    ${MODULERACK_IOS_OPTIONS}
 )
 
 target_sources(ModuleRack PRIVATE

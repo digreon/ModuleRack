@@ -5,11 +5,33 @@ namespace modulerack
 
 juce::File PresetManager::getPresetsDirectory()
 {
-    auto dir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
-                   .getChildFile("ModuleRack")
-                   .getChildFile("Presets");
-    dir.createDirectory();
-    return dir;
+    const auto directory = [&]
+    {
+       #if JUCE_IOS
+        // On iOS the AUv3 extension and the app that carries it are separate
+        // sandboxes: a patch saved in one is invisible to the other unless both
+        // are members of the same App Group. Configure one with
+        // -DMODULERACK_APP_GROUP_ID=... and both sides share this folder.
+        #if defined (MODULERACK_APP_GROUP_ID)
+         const auto shared = juce::File::getContainerForSecurityApplicationGroupIdentifier (MODULERACK_APP_GROUP_ID);
+
+         if (shared != juce::File())
+             return shared.getChildFile ("Presets");
+        #endif
+
+        // No App Group: fall back to this sandbox's own Documents folder, which at
+        // least shows up in the Files app (FILE_SHARING_ENABLED in CMakeLists).
+        return juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                   .getChildFile ("Presets");
+       #else
+        return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                   .getChildFile ("ModuleRack")
+                   .getChildFile ("Presets");
+       #endif
+    }();
+
+    directory.createDirectory();
+    return directory;
 }
 
 std::unique_ptr<juce::XmlElement> PresetManager::toXml(const Modules& modules, const Clock& clock, const MidiMapper& mapper)

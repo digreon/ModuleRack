@@ -14,7 +14,7 @@ ModulePanel::ModulePanel(SignalGraph& graphToUse, MidiMapper& mapperToUse)
     {
         auto& slider = knobSliders[(size_t) i];
         slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 70, 18);
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, 70, 20);
         slider.setRange(0.0, 1.0, 0.001);
         slider.onValueChange = [this, i]
         {
@@ -54,8 +54,8 @@ void ModulePanel::resized()
         const int col = i % 4;
         const int row = i / 4;
         auto cell = juce::Rectangle<int>(area.getX() + col * cellWidth, area.getY() + row * cellHeight, cellWidth, cellHeight);
-        knobLabels[(size_t) i].setBounds(cell.removeFromBottom(16));
-        knobSliders[(size_t) i].setBounds(cell.reduced(6));
+        knobLabels[(size_t) i].setBounds(cell.removeFromBottom(18));
+        knobSliders[(size_t) i].setBounds(cell.reduced(4));
     }
 }
 
@@ -93,8 +93,19 @@ void ModulePanel::refresh()
     auto& params = module.getParams();
 
     updatingFromCode = true;
+
     for (int i = 0; i < 8; ++i)
-        knobSliders[(size_t) i].setValue(params[(size_t) i].getNormalised(), juce::dontSendNotification);
+    {
+        auto& slider = knobSliders[(size_t) i];
+
+        // Don't write to a knob that a finger is on: a touch drag and this timer
+        // both moving the same slider makes it stutter under the fingertip.
+        if (slider.isMouseButtonDown())
+            continue;
+
+        slider.setValue(params[(size_t) i].getNormalised(), juce::dontSendNotification);
+    }
+
     updatingFromCode = false;
 }
 

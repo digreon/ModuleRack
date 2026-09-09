@@ -66,8 +66,11 @@ ModuleRackEditor::ModuleRackEditor(ModuleRackProcessor& processorToUse)
     addAndMakeVisible(modulePanel);
 
     setResizable(true, true);
-    setResizeLimits(600, 400, 1400, 900);
-    setSize(760, 500);
+
+    // Sized for an iPad in landscape, but has to survive a host pane in Split View
+    // or a small AUv3 window, so the minimum is well below the default.
+    setResizeLimits(480, 340, 1600, 1200);
+    setSize(900, 560);
 }
 
 ModuleRackEditor::~ModuleRackEditor() = default;
@@ -87,14 +90,14 @@ void ModuleRackEditor::resized()
 {
     auto area = getLocalBounds().reduced(12);
 
-    auto header = area.removeFromTop(32);
+    auto header = area.removeFromTop(40);
     titleLabel.setBounds(header.removeFromLeft(300));
-    loadPresetButton.setBounds(header.removeFromRight(100));
-    header.removeFromRight(6);
-    savePresetButton.setBounds(header.removeFromRight(100));
+    loadPresetButton.setBounds(header.removeFromRight(110));
+    header.removeFromRight(8);
+    savePresetButton.setBounds(header.removeFromRight(110));
 
     area.removeFromTop(8);
-    auto transport = area.removeFromTop(28);
+    auto transport = area.removeFromTop(36);
     bpmLabel.setBounds(transport.removeFromLeft(40));
     bpmSlider.setBounds(transport.removeFromLeft(200));
     transport.removeFromLeft(16);
@@ -102,7 +105,10 @@ void ModuleRackEditor::resized()
     controllerBox.setBounds(transport.removeFromLeft(juce::jmax(160, transport.getWidth())));
 
     area.removeFromTop(10);
-    padRow.setBounds(area.removeFromTop(40));
+
+    // 56pt of pad row: comfortably past Apple's 44pt minimum touch target, since
+    // these are the eight things that get hit most on an iPad.
+    padRow.setBounds(area.removeFromTop(56));
 
     area.removeFromTop(10);
     modulePanel.setBounds(area);

@@ -106,7 +106,49 @@ user-editable on the MPK Mini itself and differ between generations, so check
 yours in MPK Mini Editor — if the pads or knobs land on the wrong module,
 that's the mapping, not the plugin.
 
-## Building
+## The iPad build
+
+The iPad is the deployment target: ModuleRack runs there as an **AUv3** inside a
+host (AUM, Loopy Pro, Cubasis, GarageBand), with the MPK Mini attached over USB
+via a camera adapter, or over BLE MIDI.
+
+```sh
+cmake -B build-ios -G Xcode \
+      -DCMAKE_SYSTEM_NAME=iOS \
+      -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+      -DCMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM=YOURTEAMID \
+      -DMODULERACK_APP_GROUP_ID=group.com.yourteam.modulerack
+cmake --build build-ios --config Release -- -sdk iphoneos
+```
+
+On iOS an AUv3 is delivered by the app that contains it, so the build produces
+a standalone app with the extension inside; install that app on the iPad with
+Xcode and the AUv3 appears in every host's plugin list. The headless test target
+is skipped automatically on iOS.
+
+What the iOS configuration sets up, and why each one matters here:
+
+| Setting | Why |
+|---------|-----|
+| `BACKGROUND_AUDIO_ENABLED` | Hosts keep playing when backgrounded or the screen locks; the carrier app has to allow it |
+| `BACKGROUND_BLE_ENABLED`, `BLUETOOTH_PERMISSION_ENABLED` | A Bluetooth MIDI controller needs the permission and has to survive backgrounding. USB (camera adapter) needs neither |
+| `REQUIRES_FULL_SCREEN FALSE` | Split View / Slide Over — an instrument gets used beside its host |
+| `IPAD_SCREEN_ORIENTATIONS` (all four) | The host decides the orientation, not the plugin |
+| `FILE_SHARING_ENABLED` | Patches are reachable from the Files app |
+| `MODULERACK_APP_GROUP_ID` | **The one that needs your Apple developer account.** An AUv3 extension and its carrier app are separate sandboxes: without a shared App Group, a patch saved in one is invisible to the other. Set it to a group registered to your team; leave it unset and each side keeps its own presets |
+
+Touch is the primary input on the panel: the pad row is 56pt tall (past Apple's
+44pt minimum), the knob text boxes are read-only so tapping one doesn't summon a
+keyboard the extension can't host, and the refresh timer leaves alone any knob a
+finger is currently on. The editor is sized for landscape but shrinks to 480x340
+for a narrow host pane.
+
+**CPU:** all 8 modules render 82x faster than real time on one 2.8 GHz Xeon core
+(~1.2% of a core), so an iPad has ample headroom. That figure is offline at a
+512-sample block; measure on-device at your host's real block size before
+trusting it for a big session.
+
+## Building elsewhere
 
 CMake fetches JUCE (8.0.15) automatically.
 
@@ -122,10 +164,6 @@ on macOS if you want the Xcode project. The macOS CI job passes
 `-DMODULERACK_BUILD_AUV3=OFF`, since the app-extension bundle hasn't been
 validated on a bare runner — build AUv3 locally with the defaults.
 
-For an iPad AUv3 host (e.g. Loopy Pro), build/archive the AUv3 target from the
-generated Xcode project and install it onto the device with Xcode, the same as
-any other AUv3 plugin.
-
 ### Hearing a patch without a host
 
 ```sh
@@ -138,15 +176,23 @@ change by ear from a machine that can't run the plugin.
 ## Status
 
 The DSP core, the mapping and preset round-tripping are covered by the headless
-tests, which build and pass on Linux and macOS in CI. The plugin, standalone
-app and VST3 build clean on Linux. What is still unproven: the AU target is
-compiled by CI but never loaded in a host, AUv3 has not been built at all here,
-and no one has yet played the thing from an actual MPK Mini — so treat the pad
-notes, the knob CCs and the AUv3 packaging as the first things to check on a
-Mac.
+tests, which build and pass on Linux and macOS in CI. The plugin, standalone app
+and VST3 build clean on Linux.
+
+Nothing here has touched an Apple toolchain, so on the iPad side treat all of
+this as written-but-unrun: the iOS CMake configuration has been checked keyword
+by keyword against JUCE's own argument lists, not executed; the AUv3 bundle has
+never been built; the plugin has never been loaded in a host; and no one has
+played it from an actual MPK Mini. First things to check on the Mac, in order:
+the AUv3 builds and installs, a host lists and loads it, the pads and knobs land
+on the right modules, and the sound survives backgrounding.
 
 ### Known gaps
 
+- Preset Save/Load uses `juce::FileChooser`, which is a document picker on iOS.
+  That is the least certain part of the UI inside an AUv3 extension — an
+  in-plugin preset list reading the App Group folder would be more dependable.
+  The host's own state save/restore does not go through it and should be fine.
 - Module parameters are not exposed as host-automatable
   `AudioProcessorValueTreeState` parameters; the MPK Mini (or the mouse) is the
   only way to change them. Worth revisiting for AUv3 hosts.
