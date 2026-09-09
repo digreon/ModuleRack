@@ -222,6 +222,28 @@ if (MODULERACK_BUILD_TESTS)
     enable_testing()
     add_test(NAME ModuleRackTests COMMAND ModuleRackTests)
 
+    # Offscreen UI snapshots: look at the editor as PNGs, with no display server.
+    if (NOT IOS)
+        juce_add_console_app(ModuleRackUiSnapshot PRODUCT_NAME "ModuleRackUiSnapshot")
+
+        target_sources(ModuleRackUiSnapshot PRIVATE
+            Tools/RenderUiSnapshot.cpp
+            Source/PluginProcessor.cpp
+            Source/PluginEditor.cpp
+            Source/UI/ModulePanel.cpp
+            Source/UI/MixOverviewComponent.cpp
+            Source/UI/PresetBrowser.cpp
+        )
+
+        target_link_libraries(ModuleRackUiSnapshot
+            PRIVATE
+                ModuleRackCore
+                juce::juce_audio_utils
+                juce::juce_recommended_config_flags
+                juce::juce_recommended_warning_flags
+        )
+    endif()
+
     # Offline renderer: hear a patch as a WAV without a plugin host.
     juce_add_console_app(ModuleRackRender PRODUCT_NAME "ModuleRackRender")
 

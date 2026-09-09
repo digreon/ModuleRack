@@ -46,10 +46,17 @@ PresetBrowser::~PresetBrowser()
 
 void PresetBrowser::resized()
 {
-    auto area = getLocalBounds().reduced(10);
+    const bool showTitle = getHeight() >= 200;
 
-    titleLabel.setBounds(area.removeFromTop(24));
-    area.removeFromTop(6);
+    auto area = getLocalBounds().reduced(showTitle ? 10 : 6);
+
+    titleLabel.setVisible(showTitle);
+
+    if (showTitle)
+    {
+        titleLabel.setBounds(area.removeFromTop(24));
+        area.removeFromTop(6);
+    }
 
     auto nameRow = area.removeFromTop(rowHeight);
     saveButton.setBounds(nameRow.removeFromRight(90));

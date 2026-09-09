@@ -3,6 +3,20 @@
 namespace modulerack
 {
 
+namespace
+{
+    /** "Fx1: Filter/Delay" -> "Fx1", "Percussion" -> "Perc": enough to tell the
+        eight pads apart when each one is only a finger wide. */
+    juce::String abbreviate(const juce::String& name)
+    {
+        auto shortened = name.upToFirstOccurrenceOf(":", false, false)
+                             .upToFirstOccurrenceOf("/", false, false)
+                             .trim();
+
+        return shortened.length() > 6 ? shortened.substring(0, 4) : shortened;
+    }
+}
+
 MixOverviewComponent::MixOverviewComponent(SignalGraph& graphToUse, MidiMapper& mapperToUse)
     : graph(graphToUse), mapper(mapperToUse)
 {
@@ -28,9 +42,15 @@ void MixOverviewComponent::resized()
 {
     auto area = getLocalBounds();
     const int cellWidth = area.getWidth() / 8;
+    const bool useFullNames = cellWidth >= 96;
 
     for (int i = 0; i < 8; ++i)
-        padButtons[(size_t) i].setBounds(area.getX() + i * cellWidth, area.getY(), cellWidth - 4, area.getHeight());
+    {
+        auto& button = padButtons[(size_t) i];
+        const auto& name = graph.getModules()[(size_t) i]->name;
+        button.setButtonText(useFullNames ? name : abbreviate(name));
+        button.setBounds(area.getX() + i * cellWidth, area.getY(), cellWidth - 4, area.getHeight());
+    }
 }
 
 void MixOverviewComponent::timerCallback()

@@ -27,8 +27,10 @@ ModuleRackEditor::ModuleRackEditor(ModuleRackProcessor& processorToUse)
     controllerLabel.setText("Controller", juce::dontSendNotification);
     addAndMakeVisible(controllerLabel);
 
-    controllerBox.addItem(MidiMapper::mpkMiniProfile().name, 1);
-    controllerBox.addItem(MidiMapper::genericProfile().name, 2);
+    // Short menu entries: the full profile name spells out the note/CC numbers,
+    // which is README material, not something to squeeze into a host pane.
+    controllerBox.addItem("MPK Mini", 1);
+    controllerBox.addItem("Generic CC 1-8", 2);
     controllerBox.setSelectedId(1, juce::dontSendNotification);
     controllerBox.onChange = [this] { applySelectedControllerProfile(); };
     addAndMakeVisible(controllerBox);
@@ -81,27 +83,40 @@ void ModuleRackEditor::paint(juce::Graphics& g)
 
 void ModuleRackEditor::resized()
 {
-    auto area = getLocalBounds().reduced(12);
+    // A host pane in Split View can be barely taller than the chrome. When that
+    // happens every fixed height gives up a few points so the knobs -- the part
+    // you actually play -- keep room to be knobs rather than dots.
+    const bool compact = getHeight() < 460;
 
-    auto header = area.removeFromTop(40);
-    titleLabel.setBounds(header.removeFromLeft(300));
+    auto area = getLocalBounds().reduced(compact ? 8 : 12);
+
+    auto header = area.removeFromTop(compact ? 34 : 40);
+    titleLabel.setBounds(header.removeFromLeft(compact ? 200 : 300));
     presetsButton.setBounds(header.removeFromRight(120));
 
-    area.removeFromTop(8);
-    auto transport = area.removeFromTop(36);
+    area.removeFromTop(compact ? 6 : 8);
+    auto transport = area.removeFromTop(compact ? 32 : 36);
     bpmLabel.setBounds(transport.removeFromLeft(40));
-    bpmSlider.setBounds(transport.removeFromLeft(200));
+    bpmSlider.setBounds(transport.removeFromLeft(juce::jmin(200, transport.getWidth() / 2)));
     transport.removeFromLeft(16);
-    controllerLabel.setBounds(transport.removeFromLeft(80));
-    controllerBox.setBounds(transport.removeFromLeft(juce::jmax(160, transport.getWidth())));
 
-    area.removeFromTop(10);
+    // The word "Controller" is the first thing to go when the row gets tight.
+    const bool showControllerLabel = transport.getWidth() > 260;
+    controllerLabel.setVisible(showControllerLabel);
+
+    if (showControllerLabel)
+        controllerLabel.setBounds(transport.removeFromLeft(80));
+
+    controllerBox.setBounds(transport);
+
+    area.removeFromTop(compact ? 8 : 10);
 
     // 56pt of pad row: comfortably past Apple's 44pt minimum touch target, since
-    // these are the eight things that get hit most on an iPad.
-    padRow.setBounds(area.removeFromTop(56));
+    // these are the eight things that get hit most on an iPad. A cramped pane
+    // gets exactly the 44pt minimum, never less.
+    padRow.setBounds(area.removeFromTop(compact ? 44 : 56));
 
-    area.removeFromTop(10);
+    area.removeFromTop(compact ? 8 : 10);
     modulePanel.setBounds(area);
     presetBrowser.setBounds(area);
 }

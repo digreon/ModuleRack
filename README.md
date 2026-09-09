@@ -83,6 +83,8 @@ Phase 1 so the audio graph shape never has to change at runtime for the MVP.
   of system file dialogs so it behaves the same in an AUv3 extension.
 - `Tests/ModuleRackTests.cpp` — headless checks over the real signal graph.
 - `Tools/RenderPreview.cpp` — renders a patch to a WAV with no host involved.
+- `Tools/RenderUiSnapshot.cpp` — renders the editor to PNGs offscreen, so a
+  layout change can be looked at without a device or a display server.
 
 ### Decisions made (the questions from the project brief)
 
@@ -192,6 +194,17 @@ validated on a bare runner — build AUv3 locally with the defaults.
 
 Renders the real signal graph offline to a WAV — useful for checking a DSP
 change by ear from a machine that can't run the plugin.
+
+### Looking at the interface without a device
+
+```sh
+./build/ModuleRackUiSnapshot_artefacts/Release/ModuleRackUiSnapshot out-dir
+```
+
+Paints the editor into PNGs — the panel for two different modules, the preset
+list, and a cramped 480x340 pane — with no window and no display server. Worth a
+look after any layout change; it is how the compact layout's collapsed knobs and
+the normalised 0..1 readouts were caught.
 
 ## Status
 
