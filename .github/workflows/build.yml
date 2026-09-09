@@ -42,3 +42,39 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+  # The iPad is the deployment target, but nothing here had ever been through an
+  # iOS toolchain: the macos job above builds AU + Standalone for the desktop and
+  # skips AUv3. These two jobs compile what actually ships on the device.
+  macos-auv3:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build-auv3 -DCMAKE_BUILD_TYPE=Release -DMODULERACK_BUILD_AUV3=ON
+
+      - name: Build
+        run: cmake --build build-auv3
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Code signing is off: a hosted runner has no development team and no
+      # provisioning profile. Everything still compiles and links for arm64
+      # against the device SDK, which is what this job is here to prove. The
+      # App Group id is set so its code path and entitlements are built too.
+      - name: Configure
+        run: |
+          cmake -B build-ios -G Xcode \
+                -DCMAKE_SYSTEM_NAME=iOS \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+                -DMODULERACK_APP_GROUP_ID=group.com.horizon.modulerack \
+                -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO
+
+      - name: Build
+        run: |
+          cmake --build build-ios --config Release -- -sdk iphoneos \
+                CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
