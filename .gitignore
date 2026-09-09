@@ -1,0 +1,8 @@
+build/
+cmake-build-*/
+*.wav
+.DS_Store
+.vscode/
+*.xcodeproj/
+*.xcworkspace/
+JuceLibraryCode/
