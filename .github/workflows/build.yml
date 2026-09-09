@@ -117,8 +117,10 @@ jobs:
           # though this runner cannot sign -- and signing is the only thing that
           # makes them take effect, so this is a check of the configuration, not
           # proof the sharing works. That still needs a signed build on a device.
+          # Only the entitlements JUCE generates for this project -- the fetched
+          # JUCE source tree carries its own, for its examples.
           found=0
-          for f in $(find build-ios -name '*.entitlements'); do
+          for f in $(find build-ios -name '*.entitlements' -not -path '*/_deps/*'); do
             echo "--- $f ---"; cat "$f"
             grep -q "group.com.horizon.modulerack" "$f" || { echo "FAIL: no app group in $f"; exit 1; }
             found=$((found + 1))
